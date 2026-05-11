@@ -1,6 +1,7 @@
 package router
 
 import (
+	"log/slog"
 	"yadroTestAssignment/server/internal/application/contracts"
 	handlers2 "yadroTestAssignment/server/internal/presentation/handlers"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(svc contracts.DNSServer) *gin.Engine {
+func NewRouter(svc contracts.DNSServer, log *slog.Logger) *gin.Engine {
 	r := gin.Default()
 	r.Use(cors.New(cors.Config{
 		AllowAllOrigins: true,
@@ -17,9 +18,9 @@ func NewRouter(svc contracts.DNSServer) *gin.Engine {
 	}))
 	r.Use(gin.Recovery())
 
-	r.POST("/dns", handlers2.NewSaveDNSHandler(svc))
-	r.DELETE("/dns", handlers2.NewDeleteDNSHandler(svc))
-	r.GET("/dns", handlers2.NewGetAllDNSHandler(svc))
+	r.POST("/dns", handlers2.NewSaveDNSHandler(svc, log))
+	r.DELETE("/dns", handlers2.NewDeleteDNSHandler(svc, log))
+	r.GET("/dns", handlers2.NewGetAllDNSHandler(svc, log))
 
 	return r
 }

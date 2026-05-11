@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"yadroTestAssignment/server/internal/application/contracts"
 	"yadroTestAssignment/server/internal/application/service"
@@ -11,18 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewGetAllDNSHandler(DNSServer contracts.DNSServer) gin.HandlerFunc {
+func NewGetAllDNSHandler(svc contracts.DNSServer, log *slog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		lines, err := DNSServer.GetAllDNS()
+		lines, err := svc.GetAllDNS()
 		if err != nil {
 			if errors.Is(err, service.ErrFileIsNotCreated) {
-				ctx.AbortWithStatusJSON(http.StatusNotFound, presentation.DNSNotFound)
-				log.Println("file is not created")
+				ctx.AbortWithStatusJSON(http.StatusNotFound, presentation.FileNotFound)
+				log.Warn("resolv.conf not found")
 				return
 			}
-
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, presentation.InternalError)
-			log.Println("internal server error:", err)
+			log.Error("failed to get dns list", slog.Any("error", err))
 			return
 		}
 
@@ -30,8 +29,7 @@ func NewGetAllDNSHandler(DNSServer contracts.DNSServer) gin.HandlerFunc {
 			lines = []string{}
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
-			"dns_lines": lines,
-		})
+		log.Info("dns list retrieved", slog.Int("count", len(lines)))
+		ctx.JSON(http.StatusOK, gin.H{"dns_lines": lines})
 	}
 }

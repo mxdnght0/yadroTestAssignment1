@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"log"
+	"errors"
+	"log/slog"
 	"net"
 	"net/http"
 	"yadroTestAssignment/server/internal/application/contracts"
@@ -11,33 +12,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewSaveDNSHandler(DNSServer contracts.DNSServer) gin.HandlerFunc {
+func NewSaveDNSHandler(svc contracts.DNSServer, log *slog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		dns := ctx.Query("dns")
 		if dns == "" {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, presentation.DNSNotFound)
-			log.Println("dns not found in query")
+			log.Warn("dns param missing")
 			return
 		}
 
 		if net.ParseIP(dns) == nil {
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, presentation.DNSInvalid)
-			log.Println("invalid dns address:", dns)
+			log.Warn("invalid dns address", slog.String("dns", dns))
 			return
 		}
 
-		err := DNSServer.SaveDNS(dns)
-		if err != nil {
-			if err == service.ErrDNSAlreadyExists {
+		if err := svc.SaveDNS(dns); err != nil {
+			if errors.Is(err, service.ErrDNSAlreadyExists) {
 				ctx.AbortWithStatusJSON(http.StatusConflict, presentation.DNSAlreadyExists)
-				log.Println("dns already exists:", dns)
+				log.Warn("dns already exists", slog.String("dns", dns))
 				return
 			}
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, presentation.InternalError)
-			log.Println("internal server error:", err)
+			log.Error("failed to save dns", slog.String("dns", dns), slog.Any("error", err))
 			return
 		}
 
+		log.Info("dns added", slog.String("dns", dns))
 		ctx.Status(http.StatusCreated)
 	}
 }
